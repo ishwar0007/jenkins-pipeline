@@ -1,0 +1,40 @@
+// It requires Docker Pipeline plugin
+
+pipeline{
+    agent none
+    environment {
+        registry = "ishwar007/testt"
+        registryCredential = 'dockerhub_id'    // It is a user and password based credential. Store Docker user and access token
+        dockerImage = ''
+    } 
+    stages{
+        stage ('Clone') {
+            agent{
+               label 'Host-v2'
+            }
+            steps{
+                git branch: 'main',
+                credentialsId: 'GitHub-Token',
+                url: 'https://github.com/ishwar0007/test.git'
+                sh '''
+                ls -la
+                '''
+            }
+        }
+        stage('Build') {
+            agent{
+                label 'Host-v2'
+            }
+            steps{
+                script { 
+                    dockerImage = docker.build registry + ":$BUILD_NUMBER"
+                    docker.withRegistry( '', registryCredential ) {
+                        dockerImage.push()
+                    }
+                }
+                sh 'docker rmi ${registry}:${BUILD_NUMBER}'
+                sh "echo 'y' | docker builder prune --all"
+            }
+        }
+    }
+}

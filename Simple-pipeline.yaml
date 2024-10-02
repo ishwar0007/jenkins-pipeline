@@ -1,0 +1,23 @@
+pipeline {
+    agent any
+    stages {
+        stage('Build-Stage') {
+            steps {
+                sh '''
+                ls -al
+                hostname
+                echo 'Building-Step-1'
+                echo 'Name = ' $Name
+                echo 'Age = ' $Age
+                echo 'Pass = ' $Pass
+                '''
+                retry(3){
+                    sh "echo 'Hunter'"
+                }
+                timeout(time:5, unit:'SECONDS'){
+                sh 'sleep 2'
+                }
+            }
+        }
+    }
+}

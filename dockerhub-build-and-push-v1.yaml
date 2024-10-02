@@ -1,0 +1,40 @@
+pipeline{
+    agent none
+    environment {
+        registry = "ishwar007/testt"  
+        docker_user = 'ishwar007'   // docker username
+        token = credentials('docker-token') // docker-token is defined in Jenkins credentials
+    } 
+    stages{
+        stage ('Clone') {
+            agent{
+               label 'Host-v2'
+            }
+            steps{
+                git branch: 'main',
+                credentialsId: 'GitHub-Token',
+                url: 'https://github.com/ishwar0007/test.git'
+                sh '''
+                ls -la
+                '''
+            }
+        }
+        stage('Build') {
+            agent{
+                label 'Host-v2'
+            }
+            steps{
+                sh 'docker images'
+                sh 'echo ${token} | docker login -u ${docker_user} --password-stdin'
+                timeout(time: 300, unit: 'SECONDS') {
+                    sh 'docker build -t ${registry}:${BUILD_NUMBER} .'
+                }
+                sh 'docker push ${registry}:${BUILD_NUMBER}'
+                sh 'docker images'
+                sh 'docker rmi ${registry}:${BUILD_NUMBER}'
+                sh "echo 'y' | docker builder prune --all"
+                sh 'docker logout'
+            }
+        }
+    }
+}

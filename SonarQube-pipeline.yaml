@@ -1,0 +1,33 @@
+pipeline {
+    agent any
+    environment{
+        SCANNER_HOME=tool 'sonar-scanner-v2'
+        github_url = 'https://github.com/ishwar0007/sonar.git'
+        sonarqube_project_name = 'jenkins-pipeline'
+    }
+    stages {
+        stage('Clone Repository') {
+            steps {
+                git url: "${github_url}", branch: 'main', credentialsId: 'GitHub-Token'
+                sh 'ls -al'
+            }
+        }
+        stage('SonarQube Scan') {
+            steps {
+                withSonarQubeEnv(installationName: 'sonar', credentialsId: 'sonar-token') {
+                    sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=${sonarqube_project_name} \
+                    -Dsonar.projectKey=${sonarqube_project_name} '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'SonarQube analysis completed successfully.'
+        }
+        failure {
+            echo 'SonarQube analysis failed.'
+        }
+    }
+}

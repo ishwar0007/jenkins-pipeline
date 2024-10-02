@@ -1,0 +1,34 @@
+pipeline{
+  agent{
+      label 'Host-v3'
+  }
+  stages{
+      stage('Build') {
+          steps{
+              sh '''
+              echo "Build Stage"
+              hostname
+              '''
+          }
+      }
+      stage('Testing') {
+          steps{
+              sh '''
+              echo "Testing Stage"
+              hostname
+              '''
+          }
+      }
+      stage('Deploy') {
+          agent{
+              label 'Host-v1'
+          }
+          steps{
+              sh '''
+              echo "Deployment Stage"
+              hostname
+              '''
+          }
+      }
+  }
+}

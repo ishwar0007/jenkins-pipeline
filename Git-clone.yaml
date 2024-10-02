@@ -1,0 +1,18 @@
+pipeline{
+  agent{
+      label 'Host-v3'
+  }
+  stages{
+      stage('Build') {
+          steps{
+              sh "echo 'Cloning the code'"
+              git branch: 'main',
+                credentialsId: 'GitHub-Token',
+                url: 'https://github.com/ishwar0007/test.git'
+              sh '''
+              ls -la
+              '''
+          }
+      }
+  }
+}

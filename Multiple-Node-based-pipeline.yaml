@@ -1,0 +1,38 @@
+pipeline {
+    agent none
+
+    stages {
+        stage('Build') {
+            agent {
+                label 'Host-v1'
+            }
+            steps {
+                echo 'Running the Build stage on the build-agent'
+                sh 'echo "Building the application..."'
+                sh 'hostname'
+            }
+        }
+
+        stage('Test') {
+            agent {
+                label 'Host-v2'
+            }
+            steps {
+                echo 'Running the Test stage on the test-agent'
+                sh 'echo "Testing the application..."'
+                sh 'hostname'
+            }
+        }
+
+        stage('Deploy') {
+            agent {
+                label 'Host-v3'
+            }
+            steps {
+                echo 'Running the Deploy stage on the deploy-agent'
+                sh 'echo "Deploying the application..."'
+                sh 'hostname'
+            }
+        }
+    }
+}
