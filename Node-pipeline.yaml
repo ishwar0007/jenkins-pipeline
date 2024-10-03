@@ -1,5 +1,3 @@
-// It requires Node Plugin and then configure and choose the node from Tools options in Mange Jenkins
-
 pipeline {
     agent any
     environment {
@@ -22,27 +20,37 @@ pipeline {
             }
         }
         stage('Build') {
-            agent{
+            agent {
                 label 'Host-v1'
             }
-            steps{
-                nodejs('Jenkins-Node-22') { // Below commands will only works through Jenkins plugin
+            steps {
+                nodejs('Jenkins-Node-22') { // Below commands will only work through Jenkins plugin
                     sh 'node -v'            // It will not work directly on the server
                     sh 'npm --version'
                     sh 'npm install -f' 
                 }
                 stash includes: '**', name: 'build_artifacts'
-                //sh  'node -v'   // It will not work, if node is not installed on the server
+                //sh  'node -v'   // It will not work if node is not installed on the server
+            }
+            post {
+                always {
+                    cleanWs()  // Clean workspace after Build stage
+                }
             }
         }
-        stage('Deploy'){
-            agent{
+        stage('Deploy') {
+            agent {
                 label 'Host-v3'
             }
-            steps{
+            steps {
                 unstash 'build_artifacts'
                 sh "echo 'Deploying'"
                 sh 'ls -la'
+            }
+            post {
+                always {
+                    cleanWs()  // Clean workspace after Deploy stage
+                }
             }
         }
     }
