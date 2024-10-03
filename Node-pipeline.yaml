@@ -1,0 +1,57 @@
+// It requires Node Plugin and then configure and choose the node from Tools options in Mange Jenkins
+
+pipeline {
+    agent any
+    environment {
+        git_branch = 'main'
+        git_url = 'https://github.com/ishwar0007/test.git'
+    }
+    stages {
+        stage ('Clone') {
+            agent {
+                label 'Host-v1'
+            }
+            steps {
+                sh 'ls -al'
+                git branch: "${git_branch}",
+                    credentialsId: 'GitHub-Token',
+                    url: "${git_url}"
+                    
+                // Check the contents of the directory
+                sh 'ls -la'
+            }
+        }
+        stage('Build') {
+            agent{
+                label 'Host-v1'
+            }
+            steps{
+                nodejs('Jenkins-Node-22') { // Below commands will only works through Jenkins plugin
+                    sh 'node -v'            // It will not work directly on the server
+                    sh 'npm --version'
+                    sh 'npm install -f' 
+                }
+                stash includes: '**', name: 'build_artifacts'
+                //sh  'node -v'   // It will not work, if node is not installed on the server
+            }
+        }
+        stage('Deploy'){
+            agent{
+                label 'Host-v3'
+            }
+            steps{
+                unstash 'build_artifacts'
+                sh "echo 'Deploying'"
+                sh 'ls -la'
+            }
+        }
+    }
+    post {
+        success {
+            echo 'Deployment completed successfully.'
+        }
+        failure {
+            echo 'Deployment failed.'
+        }
+    }
+}
