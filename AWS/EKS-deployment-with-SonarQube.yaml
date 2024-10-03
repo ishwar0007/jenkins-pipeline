@@ -1,0 +1,113 @@
+// It requires sonar scanner plugin
+
+pipeline {
+    agent any
+    environment {
+        git_branch = 'main'
+        git_url = 'https://github.com/ishwar0007/test.git'
+        sonarqube_project_name = 'second'
+        aws_region = 'ap-south-1'
+        registry = "654654515587.dkr.ecr.ap-south-1.amazonaws.com/jenkins"
+        registryCredential = 'aws-credentials'
+        dockerImage = ''
+        container_name = 'ecr-nginx'            // Container defined in the Kubernetes deployment
+        deployment_name = 'demo-deployment'
+        discordWebhookUrl = 'https://discord.com/api/webhooks/123456/5L4nJJv4FGhSh56cYD3Ca5CPP' // Replace with your Discord Webhook URL
+    }
+    stages {
+        stage ('Clone') {
+            agent {
+                label 'Host-v1'
+            }
+            steps {
+                sh 'ls -al'
+                git branch: "${git_branch}",
+                    credentialsId: 'GitHub-Token',
+                    url: "${git_url}"
+                    
+                // Check the contents of the directory
+                sh 'ls -la'
+            }
+        }
+        stage('SonarQube Scan') {
+            agent{
+                label 'Host-v1'
+            }
+            environment {
+                SCANNER_HOME = tool 'second-scanner'
+            }
+            steps {
+                withSonarQubeEnv(installationName: 'sonar-second-server', credentialsId: 'sonar-second-token') {
+                    sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=${sonarqube_project_name} \
+                    -Dsonar.projectKey=${sonarqube_project_name} '''
+                }
+            }
+        }
+        stage('Build') {
+            agent {
+                label 'Host-v1'
+            }
+            steps {
+                script { 
+                    def commit_id = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
+                    echo "Commit ID: ${commit_id}"
+
+                    env.commit_id = commit_id
+                    
+                    dockerImage = docker.build registry + ":$commit_id"
+                    def customImage = docker.build registry + ":latest"
+                    docker.withRegistry("https://" + registry, "ecr:${aws_region}:" + registryCredential) {
+                        dockerImage.push("$commit_id")
+                        dockerImage.push("latest")
+                    }
+                }
+                sh "docker rmi ${registry}:${env.commit_id}"
+                sh "echo 'y' | docker builder prune --all"
+            }
+        }
+        stage('Deploy') {
+            agent {
+                label 'Host-v2'
+            }
+            steps {
+                script {
+                    try {
+                        withKubeConfig(credentialsId: 'kube-config-file', restrictKubeConfigAccess: false) {    
+                            sh 'kubectl get pods -A'
+                            sh "kubectl set image deployment/demo-deployment ${container_name}=${registry}:${commit_id}"
+                            sh 'sleep 60'
+                            timeout(time: 180, unit: 'SECONDS') {
+                                sh "kubectl rollout status deployment/${deployment_name}"
+                            }
+                        }
+                    } catch (e) {
+                        echo "Error during deployment: ${e.getMessage()}"
+                        currentBuild.result = 'FAILURE' // Set the build result to FAILURE
+                        error("Deployment failed due to timeout or error.")
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            script {
+                // Prepare the notification message
+                def message = """{
+                    "content": "**Pipeline Result**",
+                    "embeds": [{
+                        "title": "Jenkins Pipeline Notification",
+                        "description": "Pipeline finished with status: ${currentBuild.result} for commit ${env.commit_id}",
+                        "color": ${currentBuild.result == 'SUCCESS' ? 3066993 : (currentBuild.result == 'FAILURE' ? 15158332 : 10038562)}
+                    }]
+                }"""
+                // Send notification to Discord
+                sh """
+                    curl -H "Content-Type: application/json" \
+                         -X POST -d '${message}' \
+                         ${discordWebhookUrl}
+                """
+            }
+        }
+    }
+}
