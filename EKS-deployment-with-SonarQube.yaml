@@ -6,7 +6,6 @@ pipeline {
         git_branch = 'main'
         git_url = 'https://github.com/ishwar0007/test.git'
         sonarqube_project_name = 'second'
-        SCANNER_HOME=tool 'second-scanner'
         aws_region = 'ap-south-1'
         registry = "654654515587.dkr.ecr.ap-south-1.amazonaws.com/jenkins"
         registryCredential = 'aws-credentials'
@@ -31,6 +30,12 @@ pipeline {
             }
         }
         stage('SonarQube Scan') {
+            agent{
+                label 'Host-v1'
+            }
+            environment {
+                SCANNER_HOME = tool 'second-scanner'
+            }
             steps {
                 withSonarQubeEnv(installationName: 'sonar-second-server', credentialsId: 'sonar-second-token') {
                     sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=${sonarqube_project_name} \
